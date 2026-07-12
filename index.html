@@ -1,0 +1,461 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>Chrome Extension Communication</title>
+
+<style>
+
+*{
+    margin:0;
+    padding:0;
+    box-sizing:border-box;
+    font-family:"Segoe UI",sans-serif;
+}
+
+body{
+
+    min-height:100vh;
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    overflow:hidden;
+
+    background:
+    radial-gradient(circle at 15% 20%, rgba(59,130,246,.20), transparent 35%),
+    radial-gradient(circle at 85% 20%, rgba(99,102,241,.18), transparent 40%),
+    radial-gradient(circle at 50% 100%, rgba(14,165,233,.18), transparent 45%),
+    linear-gradient(135deg,#f8fbff,#eef5ff,#ffffff);
+
+}
+
+/* ============================
+      Floating Background
+============================= */
+
+.blob{
+    position:fixed;
+    border-radius:50%;
+    filter:blur(90px);
+    z-index:-1;
+    animation:float 10s ease-in-out infinite;
+}
+
+.blob1{
+    width:350px;
+    height:350px;
+    background:#60a5fa;
+    left:-120px;
+    top:-80px;
+}
+
+.blob2{
+    width:320px;
+    height:320px;
+    background:#818cf8;
+    right:-100px;
+    top:120px;
+    animation-delay:3s;
+}
+
+.blob3{
+    width:380px;
+    height:380px;
+    background:#38bdf8;
+    bottom:-140px;
+    left:40%;
+    animation-delay:6s;
+}
+
+@keyframes float{
+
+    0%{
+        transform:translateY(0px) scale(1);
+    }
+
+    50%{
+        transform:translateY(-35px) scale(1.08);
+    }
+
+    100%{
+        transform:translateY(0px) scale(1);
+    }
+
+}
+
+/* ============================
+        Glass Card
+============================= */
+
+.card{
+
+    width:min(720px,92%);
+    padding:35px;
+
+    background:rgba(255,255,255,.75);
+
+    backdrop-filter:blur(25px);
+
+    border:1px solid rgba(255,255,255,.9);
+
+    border-radius:28px;
+
+    box-shadow:
+    0 30px 70px rgba(30,64,175,.15),
+    0 15px 35px rgba(0,0,0,.08);
+
+}
+
+h1{
+
+    text-align:center;
+    margin-bottom:30px;
+    color:#1e3a8a;
+    font-size:32px;
+
+}
+
+.field{
+
+    margin-bottom:22px;
+
+}
+
+label{
+
+    display:block;
+    margin-bottom:10px;
+    color:#334155;
+    font-weight:600;
+
+}
+
+select,
+input,
+textarea{
+
+    width:100%;
+    padding:16px;
+
+    border-radius:14px;
+
+    border:1px solid #dbeafe;
+
+    outline:none;
+
+    background:white;
+
+    color:#334155;
+
+    font-size:16px;
+
+    transition:.25s;
+
+}
+
+select:focus,
+input:focus,
+textarea:focus{
+
+    border-color:#3b82f6;
+
+    box-shadow:0 0 0 4px rgba(59,130,246,.15);
+
+}
+
+textarea{
+
+    resize:none;
+    height:130px;
+
+}
+
+button{
+
+    width:100%;
+
+    margin-top:10px;
+
+    padding:16px;
+
+    border:none;
+
+    border-radius:15px;
+
+    background:linear-gradient(135deg,#2563eb,#3b82f6);
+
+    color:white;
+
+    font-size:17px;
+
+    font-weight:600;
+
+    cursor:pointer;
+
+    transition:.3s;
+
+}
+
+button:hover{
+
+    transform:translateY(-3px);
+
+    box-shadow:0 18px 35px rgba(37,99,235,.30);
+
+}
+
+.output{
+
+    margin-top:30px;
+
+    padding:20px;
+
+    min-height:150px;
+
+    border-radius:15px;
+
+    background:#f8fbff;
+
+    border:1px solid #dbeafe;
+
+    white-space:pre-wrap;
+
+    color:#0f172a;
+
+    overflow:auto;
+
+}
+
+/* Scrollbar */
+
+::-webkit-scrollbar{
+    width:8px;
+}
+
+::-webkit-scrollbar-thumb{
+    background:#3b82f6;
+    border-radius:20px;
+}
+
+</style>
+
+</head>
+
+<body>
+
+<div class="blob blob1"></div>
+<div class="blob blob2"></div>
+<div class="blob blob3"></div>
+
+<div class="card">
+
+<h1>Chrome Extension Communication</h1>
+
+<div class="field">
+
+<label>Communication Type</label>
+
+<select id="communication">
+
+<option value="">Select Communication</option>
+
+<option value="window">
+Window Communication
+</option>
+
+<option value="external">
+External Connectable
+</option>
+
+</select>
+
+</div>
+
+<div class="field">
+
+<label>Event / Message Name</label>
+
+<input
+id="eventName"
+placeholder="Example : GET_USER"
+/>
+
+</div>
+
+<div class="field">
+
+<label>Message Payload (JSON or Text)</label>
+
+<textarea
+id="payload"
+placeholder='{"name":"Abhilash"}'
+></textarea>
+
+</div>
+
+<button onclick="sendMessage()">
+Send Message
+</button>
+
+<div
+class="output"
+id="output"
+>
+Waiting for response...
+</div>
+
+</div>
+
+<script>
+
+/************************************************
+ Replace with your Extension ID
+*************************************************/
+
+const EXTENSION_ID = "YOUR_EXTENSION_ID";
+
+const output = document.getElementById("output");
+
+/************************************************
+ Display Response
+*************************************************/
+
+function showResponse(response){
+
+    output.textContent =
+    typeof response==="string"
+    ? response
+    : JSON.stringify(response,null,4);
+
+}
+
+/************************************************
+ Send Message
+*************************************************/
+
+function sendMessage(){
+
+    const communication =
+    document.getElementById("communication").value;
+
+    const eventName =
+    document.getElementById("eventName").value;
+
+    let payload =
+    document.getElementById("payload").value;
+
+    try{
+
+        payload = JSON.parse(payload);
+
+    }
+    catch{
+
+        payload={
+            value:payload
+        };
+
+    }
+
+    if(communication==="window"){
+
+        window.postMessage({
+
+            source:"webpage",
+
+            event:eventName,
+
+            payload:payload
+
+        },"*");
+
+        showResponse(
+            "Window message sent.\nWaiting for extension response..."
+        );
+
+    }
+
+    else if(communication==="external"){
+
+        if(typeof chrome==="undefined" || !chrome.runtime){
+
+            showResponse(
+                "chrome.runtime is unavailable."
+            );
+
+            return;
+
+        }
+
+        chrome.runtime.sendMessage(
+
+            EXTENSION_ID,
+
+            {
+
+                event:eventName,
+
+                payload:payload
+
+            },
+
+            function(response){
+
+                if(chrome.runtime.lastError){
+
+                    showResponse(
+                        chrome.runtime.lastError.message
+                    );
+
+                    return;
+
+                }
+
+                showResponse(response);
+
+            }
+
+        );
+
+    }
+
+    else{
+
+        alert("Please select a communication type.");
+
+    }
+
+}
+
+/************************************************
+ Listen for Extension Window Messages
+*************************************************/
+
+window.addEventListener(
+
+"message",
+
+function(event){
+
+    if(event.source!==window)
+        return;
+
+    if(!event.data)
+        return;
+
+    if(event.data.source==="extension"){
+
+        showResponse(event.data);
+
+    }
+
+}
+
+);
+
+</script>
+
+</body>
+</html>
